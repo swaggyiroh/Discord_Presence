@@ -28,8 +28,11 @@ def format_elapsed_time(seconds):
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{int(hours)}:{int(minutes):02}:{int(seconds):02}"
-
-def fetch_user_banner(user_id):
+@app.route('/get_presence/<int:user_id>', methods=['GET'])
+def get_presence(user_id):
+    user_name = None
+    user_avatar_url = None
+    
     headers = {
         'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
     }
@@ -40,31 +43,16 @@ def fetch_user_banner(user_id):
         banner = user_data.get('banner', None)
         
         if banner:
-            banner_url = f'https://cdn.discordapp.com/banners/{user_id}/{banner}'
-            if banner.startswith('a_'):
-                banner_url += '.gif'
-            else:
-                banner_url += '.png'
-            return banner_url
+            file_format = "gif" if banner.startswith("a_") else "png"
+            banner_url = f"https://cdn.discordapp.com/banners/{user_id}/{banner}.{file_format}?size=4096"
         else:
-            return None
+            banner_url = 'https://via.placeholder.com/500x150?text=No+Banner'
     else:
-        return None
-
-@app.route('/get_presence/<int:user_id>', methods=['GET'])
-def get_presence(user_id):
-    user_name = None
-    user_avatar_url = None
-    banner_url = fetch_user_banner(user_id)
-    
-    # Check if banner_url is None or invalid
-    if banner_url:
-        banner_url = banner_url
-    else:
-        banner_url = 'https://via.placeholder.com/500x150?text=No+Banner'  # Placeholder image if no banner is available
+        banner_url = 'https://via.placeholder.com/500x150?text=No+Banner'
     
     latest_activity = None
     latest_start_time = 0
+    activity_logo_url = None
 
     for guild in bot.guilds:
         member = guild.get_member(user_id)
@@ -78,13 +66,19 @@ def get_presence(user_id):
                     if start_timestamp > latest_start_time:
                         latest_activity = activity
                         latest_start_time = start_timestamp
+                        
+                        # Fetch the application logo (large image) if available
+                        if activity.assets and 'large_image' in activity.assets:
+                            asset_id = activity.assets['large_image'].split(':')[-1]
+                            activity_logo_url = f"https://cdn.discordapp.com/app-assets/{activity.application_id}/{asset_id}.png"
 
     if latest_activity:
         activity_info = {
             "activity_type": type(latest_activity).__name__,
             "activity_name": getattr(latest_activity, 'name', "N/A"),
             "details": getattr(latest_activity, 'details', 'N/A'),
-            "state": getattr(latest_activity, 'state', 'N/A')
+            "state": getattr(latest_activity, 'state', 'N/A'),
+            "activity_logo_url": activity_logo_url
         }
         
         # Calculate elapsed time
@@ -105,22 +99,30 @@ def get_presence(user_id):
             })
         
         activities_html = f"""
-        <p><strong>Activity:</strong> {activity_info['activity_name']}<br>
-           <strong>Details:</strong> {activity_info['details']}<br>
-           <strong>State:</strong> {activity_info['state']}<br>
-           <strong>Elapsed Time:</strong> {activity_info['elapsed_time']}<br>
-           {', <strong>Song:</strong> ' + activity_info['song_title'] + ', <strong>Artist:</strong> ' + activity_info['artist'] + ', <strong>Album:</strong> ' + activity_info['album'] + ', <strong>Elapsed:</strong> ' + activity_info['song_elapsed'] + ', <strong>Duration:</strong> ' + activity_info['song_duration'] if activity_info['activity_type'] == 'Spotify' else ''}
-        </p>
+        <div style="text-align: left;">
+            <p>{activity_info['activity_name']}<br>
+            {activity_info['details']}<br>
+            {activity_info['state']}<br>
+            {activity_info['elapsed_time']}<br>
+            {', <strong>Song:</strong> ' + activity_info['song_title'] + ', <strong>Artist:</strong> ' + activity_info['artist'] + ', <strong>Album:</strong> ' + activity_info['album'] + ', <strong>Elapsed:</strong> ' + activity_info['song_elapsed'] + ', <strong>Duration:</strong> ' + activity_info['song_duration'] if activity_info['activity_type'] == 'Spotify' else ''}
+            </p>
+        </div>
         """
+
+        if activity.assets and 'small_image' in activity.assets:
+            small_asset_id = activity.assets['small_image'].split(':')[-1]
+            small_icon_url = f"https://cdn.discordapp.com/app-assets/{activity.application_id}/{small_asset_id}.png"
+
+        if activity_info['activity_logo_url']:
+            main_activitylogo_url = activity_info["activity_logo_url"]
     else:
-        activities_html = '<p>No presence data available</p>'
+        activities_html = ''
 
     html_template = f"""
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{user_name}'s Discord Presence</title>
         <style>
             body {{
@@ -133,67 +135,85 @@ def get_presence(user_id):
             }}
             .profile {{
                 display: flex;
-                flex-direction: row;
-                align-items: flex-start;
-                justify-content: center;
                 margin: 20px auto;
                 padding: 20px;
                 background-color: #23272a;
                 border-radius: 10px;
-                box-sizing: border-box;
-                max-width: 100vw;
+                width: fit-content;
+                align-items: center;
+            }}
+            .username {{
+                margin-top: 0px;
+                align-items: center;
             }}
             .avatar {{
                 text-align: center;
                 margin-right: 20px;
+                transform: scale(1.1);
+                transform-origin: top left;
             }}
             .avatar img {{
                 border-radius: 50%;
-                width: 100px;
-                height: 100px;
+                margin-bottom: 10px;
             }}
             .banner-container {{
                 display: flex;
                 flex-direction: column;
-                align-items: center;
-                width: 100%;
-                max-width: 500px;
-                overflow: hidden; /* Hide overflowed parts of the banner */
+                align-items: flex-start;
             }}
             .banner {{
-                width: 100%; /* Ensure the banner takes full width */
-                height: auto; /* Maintain aspect ratio */
-                background-repeat: no-repeat;
-                background-position: center;
-                background-size: cover; /* Cover the container while maintaining aspect ratio */
+                width: 500px; 
+                height: 170px; 
+                transform: scale(0.7); 
+                transform-origin: top center; 
+                background-repeat: no-repeat; 
                 background-image: url('{banner_url}');
                 border-radius: 20px;
-                margin-bottom: 20px;
+            }}
+            .activity-container {{
+                display: flex;
+                align-items: stretch;
             }}
             .activity {{
-                text-align: left;
-                width: 100%;
-                max-width: 500px;
-                margin-top: 10px;
+                margin-top: -10px;
+            }}
+            .activity-logo{{
+                height: 128px;
+                width: 128px;
+                transform: scale(0.7);
+                background-repeat: no-repeat; /* Prevent repeating the image */
+                
+                
+                border-radius: 20px;
+                
+                transform-origin: left top;
+                background-image: url('{main_activitylogo_url}');
             }}
         </style>
     </head>
     <body>
         <div class="profile">
             <div class="avatar">
-                <img src="{user_avatar_url}" alt="Avatar">
-                <p class="username"><strong>{user_name}</strong></p>
+                <img src="{user_avatar_url}" alt="Avatar" width="100" height="100">
+                <p class="username">{user_name}</p>
             </div>
             <div class="banner-container">
                 <div class="banner"></div>
-                <div class="activity">{activities_html}</div>
+                
             </div>
+                <div class="activity-container">
+                <div class="activity-logo"></div>
+                <div class="activity">{activities_html}</div>
+                </div>
         </div>
     </body>
     </html>
     """
     
     return render_template_string(html_template)
+
+
+
 
 def run_bot():
     bot.run(DISCORD_BOT_TOKEN)
