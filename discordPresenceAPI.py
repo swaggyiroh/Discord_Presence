@@ -134,7 +134,13 @@ def get_presence(user_id):
                 margin: 0;
             }}
             .profile {{
-                display: flex;
+                display: grid; 
+                grid-template-columns: 1.6fr 1.4fr; 
+                grid-template-rows: 1fr 1fr; 
+                gap: 0px 0px; 
+                grid-template-areas: 
+                    "top top"
+                    "bottom bottom"; 
                 margin: 20px auto;
                 padding: 20px;
                 background-color: #23272a;
@@ -142,6 +148,8 @@ def get_presence(user_id):
                 width: fit-content;
                 align-items: center;
             }}
+            .top {{ grid-area: top;display: flex; }}
+            .bottom {{ grid-area: bottom; }}
             .username {{
                 margin-top: 0px;
                 align-items: center;
@@ -162,13 +170,11 @@ def get_presence(user_id):
                 align-items: flex-start;
             }}
             .banner {{
-                width: 500px; 
-                height: 170px; 
-                transform: scale(0.7); 
-                transform-origin: top center; 
-                background-repeat: no-repeat; 
-                background-image: url('{banner_url}');
-                border-radius: 20px;
+            }}
+            .banner img{{
+                width:300px;
+                heught=110px;
+                border-radius: 10px;
             }}
             .activity-container {{
                 display: flex;
@@ -193,19 +199,26 @@ def get_presence(user_id):
     </head>
     <body>
         <div class="profile">
+            <div class="top">
             <div class="avatar">
                 <img src="{user_avatar_url}" alt="Avatar" width="100" height="100">
                 <p class="username">{user_name}</p>
             </div>
+            
             <div class="banner-container">
-                <div class="banner"></div>
-                
-            </div>
-                <div class="activity-container">
-                <div class="activity-logo"></div>
-                <div class="activity">{activities_html}</div>
+                <div class="banner">
+                    <img src="{banner_url}" alt="Banner">
                 </div>
+            </div>
         </div>
+            <div class="bottom">
+                <div class="activity-container">
+                    <div class="activity-logo"></div>
+                    <div class="activity">{activities_html}</div>
+                </div>
+            </div>
+        </div>
+        
     </body>
     </html>
     """
