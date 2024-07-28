@@ -77,6 +77,9 @@ def get_presence(user_id):
                                 asset_id = activity.assets['large_image'].split(':')[-1]
                                 activity_logo_url = f"https://cdn.discordapp.com/app-assets/{activity.application_id}/{asset_id}.png"
     
+    activities_html = ''
+    main_activitylogo_url = "https://cdn.prod.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png"
+
     if latest_activity:
         current_time = int(time.time())
         start_time = getattr(latest_activity, 'start', None)
@@ -93,7 +96,7 @@ def get_presence(user_id):
                 "song_elapsed": format_elapsed_time(current_time - latest_activity.start.timestamp()),
                 "song_duration": format_elapsed_time(latest_activity.duration.total_seconds()),
                 "activity_logo_url": activity_logo_url,
-                "elapsed_time": formatted_elapsed_time
+                "elapsed_time": formatted_elapsed_time,
             }
 
             activities_html = f"""
@@ -111,7 +114,7 @@ def get_presence(user_id):
                 "details": getattr(latest_activity, 'details', 'N/A'),
                 "state": getattr(latest_activity, 'state', 'N/A'),
                 "activity_logo_url": activity_logo_url,
-                "elapsed_time": formatted_elapsed_time
+                "elapsed_time": formatted_elapsed_time,
             }
 
             # Conditionally display details and state if they are not None
@@ -127,8 +130,6 @@ def get_presence(user_id):
             """
 
         main_activitylogo_url = activity_info["activity_logo_url"] if activity_info['activity_logo_url'] else "https://cdn.prod.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png"
-    else:
-        activities_html = ''
 
     html_template = f"""
     <!DOCTYPE html>
@@ -215,30 +216,26 @@ def get_presence(user_id):
     <body>
         <div class="profile">
             <div class="top">
-            <div class="avatar">
-                <img src="{user_avatar_url}" alt="Avatar" width="100" height="100">
-                <p class="username">{user_name}</p>
-            </div>
-            
-            <div class="banner-container">
-                <div class="banner">
-                    <img src="{banner_url}" alt="Banner">
+                <div class="avatar">
+                    <img src="{user_avatar_url}" alt="Avatar" width="100" height="100">
+                    <p class="username">{user_name}</p>
+                </div>
+                <div class="banner-container">
+                    <div class="banner">
+                        <img src="{banner_url}" alt="Banner">
+                    </div>
                 </div>
             </div>
-        </div>
             <div class="bottom">
-                <div class="activity-container">
-                    <img src="{main_activitylogo_url}" alt= width="100" height="100">
-                    <div class="activity">{activities_html}</div>
-                </div>
+                {f'<div class="activity-container"><img src="{main_activitylogo_url}" alt="" width="100" height="100"><div class="activity">{activities_html}</div></div>' if activities_html else ''}
             </div>
         </div>
-        
     </body>
     </html>
     """
     
     return render_template_string(html_template)
+
 
 def run_bot():
     bot.run(DISCORD_BOT_TOKEN)
