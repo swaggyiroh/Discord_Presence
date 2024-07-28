@@ -28,6 +28,7 @@ def format_elapsed_time(seconds):
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{int(hours)}:{int(minutes):02}:{int(seconds):02}"
+
 @app.route('/get_presence/<int:user_id>', methods=['GET'])
 def get_presence(user_id):
     user_name = None
@@ -59,6 +60,7 @@ def get_presence(user_id):
         if member:
             user_name = member.name
             user_avatar_url = member.avatar.url if member.avatar else None
+            
             for activity in member.activities:
                 start_time = getattr(activity, 'start', None)
                 if start_time:
@@ -67,54 +69,64 @@ def get_presence(user_id):
                         latest_activity = activity
                         latest_start_time = start_timestamp
                         
-                        # Fetch the application logo (large image) if available
-                        if activity.assets and 'large_image' in activity.assets:
-                            asset_id = activity.assets['large_image'].split(':')[-1]
-                            activity_logo_url = f"https://cdn.discordapp.com/app-assets/{activity.application_id}/{asset_id}.png"
-
+                        # Special handling for Spotify activity
+                        if isinstance(activity, discord.Spotify):
+                            activity_logo_url = activity.album_cover_url
+                        else:
+                            if activity.assets and 'large_image' in activity.assets:
+                                asset_id = activity.assets['large_image'].split(':')[-1]
+                                activity_logo_url = f"https://cdn.discordapp.com/app-assets/{activity.application_id}/{asset_id}.png"
+    
     if latest_activity:
-        activity_info = {
-            "activity_type": type(latest_activity).__name__,
-            "activity_name": getattr(latest_activity, 'name', "N/A"),
-            "details": getattr(latest_activity, 'details', 'N/A'),
-            "state": getattr(latest_activity, 'state', 'N/A'),
-            "activity_logo_url": activity_logo_url
-        }
-        
-        # Calculate elapsed time
         current_time = int(time.time())
         start_time = getattr(latest_activity, 'start', None)
         elapsed_time = current_time - start_time.timestamp() if start_time else None
-        activity_info["elapsed_time"] = format_elapsed_time(elapsed_time)
-        
-        # Additional Spotify-specific info
+        formatted_elapsed_time = format_elapsed_time(elapsed_time)
+
         if isinstance(latest_activity, discord.Spotify):
-            activity_info.update({
+            activity_info = {
+                "activity_type": "Spotify",
                 "song_title": latest_activity.title,
                 "artist": latest_activity.artist,
                 "album": latest_activity.album,
                 "track_id": latest_activity.track_id,
                 "song_elapsed": format_elapsed_time(current_time - latest_activity.start.timestamp()),
-                "song_duration": format_elapsed_time(latest_activity.duration.total_seconds())
-            })
-        
-        activities_html = f"""
-        <div style="text-align: left;">
-            <p>{activity_info['activity_name']}<br>
-            {activity_info['details']}<br>
-            {activity_info['state']}<br>
-            {activity_info['elapsed_time']}<br>
-            {', <strong>Song:</strong> ' + activity_info['song_title'] + ', <strong>Artist:</strong> ' + activity_info['artist'] + ', <strong>Album:</strong> ' + activity_info['album'] + ', <strong>Elapsed:</strong> ' + activity_info['song_elapsed'] + ', <strong>Duration:</strong> ' + activity_info['song_duration'] if activity_info['activity_type'] == 'Spotify' else ''}
-            </p>
-        </div>
-        """
+                "song_duration": format_elapsed_time(latest_activity.duration.total_seconds()),
+                "activity_logo_url": activity_logo_url,
+                "elapsed_time": formatted_elapsed_time
+            }
 
-        if activity.assets and 'small_image' in activity.assets:
-            small_asset_id = activity.assets['small_image'].split(':')[-1]
-            small_icon_url = f"https://cdn.discordapp.com/app-assets/{activity.application_id}/{small_asset_id}.png"
+            activities_html = f"""
+            <div style="text-align: left;">
+                <p><strong>Song:</strong> {activity_info['song_title']}<br>
+                <strong>Artist:</strong> {activity_info['artist']}<br>
+                <strong>Album:</strong> {activity_info['album']}<br>
+                </p>
+            </div>
+            """
+        else:
+            activity_info = {
+                "activity_type": type(latest_activity).__name__,
+                "activity_name": getattr(latest_activity, 'name', "N/A"),
+                "details": getattr(latest_activity, 'details', 'N/A'),
+                "state": getattr(latest_activity, 'state', 'N/A'),
+                "activity_logo_url": activity_logo_url,
+                "elapsed_time": formatted_elapsed_time
+            }
 
-        if activity_info['activity_logo_url']:
-            main_activitylogo_url = activity_info["activity_logo_url"]
+            # Conditionally display details and state if they are not None
+            details_html = f"<br>{activity_info['details']}" if activity_info['details'] != 'N/A' else ""
+            state_html = f"<br>{activity_info['state']}" if activity_info['state'] != 'N/A' else ""
+
+            activities_html = f"""
+            <div style="text-align: left;">
+                <p>{activity_info['activity_name']}{details_html}{state_html}<br>
+                {activity_info['elapsed_time']}
+                </p>
+            </div>
+            """
+
+        main_activitylogo_url = activity_info["activity_logo_url"] if activity_info['activity_logo_url'] else "https://cdn.prod.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png"
     else:
         activities_html = ''
 
@@ -136,8 +148,7 @@ def get_presence(user_id):
             .profile {{
                 display: grid; 
                 grid-template-columns: 1.6fr 1.4fr; 
-                grid-template-rows: 1fr 1fr; 
-                gap: 0px 0px; 
+                gap: 2vh 0px; 
                 grid-template-areas: 
                     "top top"
                     "bottom bottom"; 
@@ -173,13 +184,20 @@ def get_presence(user_id):
             }}
             .banner img{{
                 width:300px;
-                heught=110px;
+                height:110px;
                 border-radius: 10px;
             }}
             .activity-container {{
                 display: flex;
-                align-items: stretch;
+                align-items: center;
+                gap:1vw;
+                flex-direction: row;
             }}
+            .activity-container img {{
+                width:110px;
+                height:110px;
+                border-radius: 20px;
+                }}
             .activity {{
                 margin-top: -10px;
             }}
@@ -188,10 +206,7 @@ def get_presence(user_id):
                 width: 128px;
                 transform: scale(0.7);
                 background-repeat: no-repeat; /* Prevent repeating the image */
-                
-                
                 border-radius: 20px;
-                
                 transform-origin: left top;
                 background-image: url('{main_activitylogo_url}');
             }}
@@ -213,7 +228,7 @@ def get_presence(user_id):
         </div>
             <div class="bottom">
                 <div class="activity-container">
-                    <div class="activity-logo"></div>
+                    <img src="{main_activitylogo_url}" alt= width="100" height="100">
                     <div class="activity">{activities_html}</div>
                 </div>
             </div>
@@ -224,9 +239,6 @@ def get_presence(user_id):
     """
     
     return render_template_string(html_template)
-
-
-
 
 def run_bot():
     bot.run(DISCORD_BOT_TOKEN)
