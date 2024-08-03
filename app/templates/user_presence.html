@@ -15,7 +15,6 @@
         .profile {
             display: grid; 
             grid-template-columns: 1.6fr 1.4fr; 
-            gap: 2vh 0px; 
             grid-template-areas: 
                 "top top"
                 "bottom bottom"; 
@@ -25,17 +24,21 @@
             border-radius: 10px;
             width: fit-content;
             align-items: center;
+            max-width: 100%;
+            box-sizing: border-box;
         }
-        .top { grid-area: top; display: flex; }
+        .top { grid-area: top; display: flex; flex-wrap: wrap; }
         .bottom { grid-area: bottom; }
         .username {
+            font-size: large;
             margin-top: 0px;
             align-items: center;
+            word-wrap: break-word;
+            max-width: 100px; 
         }
         .avatar {
             text-align: center;
             margin-right: 20px;
-            transform: scale(1.1);
             transform-origin: top left;
         }
         .avatar img {
@@ -49,7 +52,7 @@
         }
         .banner img {
             width: 300px;
-            height: 110px;
+            height: 100px;
             border-radius: 10px;
         }
         .activity-container {
@@ -57,19 +60,25 @@
             align-items: center;
             gap: 1vw;
             flex-direction: row;
+            max-width: 100%; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
         }
         .activity-container img {
-            width: 110px;
-            height: 110px;
+            width: 100px;
+            height: 100px;
             border-radius: 20px;
+            flex-shrink: 0;
         }
         .activity {
+            font-size: 15px;
             margin-top: -10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px; 
         }
         .activity-logo {
-            height: 128px;
-            width: 128px;
-            transform: scale(0.7);
             background-repeat: no-repeat;
             border-radius: 20px;
             transform-origin: left top;
